@@ -4,6 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 一个支持多平台大模型API调用的自动化文本处理和分析工具，提供可视化界面和灵活配置。
+
 An automated text processing tool with GUI support for multiple LLM APIs, featuring flexible configuration and batch processing.
 
 
