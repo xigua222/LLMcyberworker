@@ -96,7 +96,7 @@ tkinter>=0.1.0
 
 ## 📄 许可证
 
-本项目采用 [MIT License](https://license/)
+本项目采用 MIT License
 
 ## 🤝 参与贡献
 
