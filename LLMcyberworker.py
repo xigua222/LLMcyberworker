@@ -34,7 +34,6 @@ class ConfigManager:
 
     @classmethod
     def load_config(cls):
-        """加载配置文件并验证哈希"""
         if not os.path.exists(cls.CONFIG_FILE):
             return DEFAULT_CONFIG.copy()
 
@@ -42,7 +41,6 @@ class ConfigManager:
             with open(cls.CONFIG_FILE, 'r') as f:
                 data = json.load(f)
 
-            # 验证哈希
             config_hash = data.pop('config_hash', '')
             calculated_hash = cls._calculate_hash(data)
 
@@ -57,7 +55,6 @@ class ConfigManager:
 
     @classmethod
     def save_config(cls, config):
-        """保存配置并生成哈希"""
         try:
             config_hash = cls._calculate_hash(config)
             config_with_hash = config.copy()
@@ -73,7 +70,6 @@ class ConfigManager:
 
     @staticmethod
     def _calculate_hash(config_dict):
-        """计算配置哈希值"""
         sorted_str = json.dumps(config_dict, sort_keys=True).encode('utf-8')
         return hashlib.sha256(sorted_str).hexdigest()
 
@@ -83,16 +79,13 @@ class GenericAnalysisApp:
         self.root = root
         self.root.title("LLMcyberworkerV1.0")
 
-        # 加载配置
         self.config = ConfigManager.load_config()
         self.running_config = self.config.copy()
 
-        # 初始化配置参数
         self.id_column = self.running_config['id_column']
         self.text_column = self.running_config['text_column']
         self.model_name = self.running_config['model_name']
 
-        # 状态变量
         self.stop_event = Event()
         self.current_write_index = 0
         self.checkpoint_file = ".progress_checkpoint"
@@ -101,21 +94,18 @@ class GenericAnalysisApp:
         self.results_buffer = {}
         self.total_tokens = 0  # Token统计
 
-        # 初始化界面
         self.setup_ui()
         self.setup_menu()
         self.update_api_headers()
         self.setup_rate_limiter()
 
     def setup_rate_limiter(self):
-        """初始化速率控制器"""
         self.rate_limiter = threading.BoundedSemaphore(
             self.running_config['rate_bucket']
         )
         self.last_request_time = 0
 
     def update_api_headers(self):
-        """更新API请求头"""
         self.headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.running_config['api_key']}",
@@ -123,9 +113,7 @@ class GenericAnalysisApp:
         }
 
     def setup_menu(self):
-        """创建菜单系统"""
         menubar = tk.Menu(self.root)
-
         config_menu = tk.Menu(menubar, tearoff=0)
         config_menu.add_command(label="API配置", command=self.configure_api)
         config_menu.add_command(label="列名配置", command=self.configure_columns)
@@ -139,11 +127,9 @@ class GenericAnalysisApp:
         self.root.config(menu=menubar)
 
     def setup_ui(self):
-        """初始化主界面"""
         main_frame = ttk.Frame(self.root, padding=20)
         main_frame.pack(fill=tk.BOTH, expand=True)
 
-        # 文件选择区域
         ttk.Label(main_frame, text="输入文件:").grid(row=0, column=0, sticky=tk.W)
         self.input_path = tk.StringVar()
         ttk.Entry(main_frame, textvariable=self.input_path, width=50).grid(row=0, column=1)
@@ -154,7 +140,6 @@ class GenericAnalysisApp:
         ttk.Entry(main_frame, textvariable=self.output_path, width=50).grid(row=1, column=1)
         ttk.Button(main_frame, text="浏览...", command=self.select_output_file).grid(row=1, column=2)
 
-        # 控制按钮
         btn_frame = ttk.Frame(main_frame)
         btn_frame.grid(row=2, column=0, columnspan=3, pady=15)
         self.start_btn = ttk.Button(btn_frame, text="开始处理", command=self.start_processing)
@@ -162,26 +147,21 @@ class GenericAnalysisApp:
         self.stop_btn = ttk.Button(btn_frame, text="停止处理", command=self.stop_processing, state=tk.DISABLED)
         self.stop_btn.pack(side=tk.LEFT, padx=5)
 
-        # 进度显示
         self.progress = ttk.Progressbar(main_frame, orient=tk.HORIZONTAL, mode='determinate')
         self.progress.grid(row=3, column=0, columnspan=3, sticky=tk.EW, pady=10)
 
-        # 状态栏
         status_frame = ttk.Frame(main_frame)
         status_frame.grid(row=4, column=0, columnspan=3, sticky=tk.EW)
         self.status_var = tk.StringVar(value="就绪")
         ttk.Label(status_frame, textvariable=self.status_var).pack(side=tk.LEFT)
 
-        # Token统计
         self.token_var = tk.StringVar(value="已用Token: 0")
         ttk.Label(status_frame, textvariable=self.token_var).pack(side=tk.RIGHT)
 
-        # 日志系统
         self.log_text = tk.Text(main_frame, height=10, width=70)
         self.log_text.grid(row=5, column=0, columnspan=3, pady=10)
         self.log_text.tag_config('error', foreground='red')
 
-        # Prompt配置区域
         prompt_frame = ttk.LabelFrame(main_frame, text="处理指令配置")
         prompt_frame.grid(row=6, column=0, columnspan=3, sticky=tk.EW, pady=5)
 
@@ -196,7 +176,6 @@ class GenericAnalysisApp:
         self.user_prompt_entry.grid(row=1, column=1)
 
     def configure_api(self):
-        """API配置对话框"""
         dialog = tk.Toplevel(self.root)
         dialog.title("API配置")
 
@@ -218,7 +197,6 @@ class GenericAnalysisApp:
             for field, entry in entries.items():
                 self.running_config[field] = entry.get().strip()
 
-            # 更新相关参数
             self.model_name = self.running_config['model_name']
             self.update_api_headers()
 
@@ -229,7 +207,6 @@ class GenericAnalysisApp:
         ttk.Button(dialog, text="保存", command=save_config).grid(row=3, column=1, pady=10)
 
     def configure_processing(self):
-        """处理参数配置"""
         dialog = tk.Toplevel(self.root)
         dialog.title("处理配置")
 
@@ -266,7 +243,6 @@ class GenericAnalysisApp:
         ttk.Button(dialog, text="保存", command=save_config).grid(row=4, column=1, pady=10)
 
     def configure_columns(self):
-        """列名配置对话框"""
         dialog = tk.Toplevel(self.root)
         dialog.title("列名配置")
         dialog.columnconfigure(1, weight=1)  # 添加弹性布局
@@ -298,7 +274,6 @@ class GenericAnalysisApp:
         ttk.Button(btn_frame, text="保存", command=save_columns).pack(side=tk.RIGHT)
 
     def select_input_file(self):
-        """选择输入文件"""
         path = filedialog.askopenfilename(
             title="选择输入文件",
             filetypes=[("Excel文件", "*.xlsx"), ("CSV文件", "*.csv"), ("所有文件", "*.*")]
@@ -312,7 +287,6 @@ class GenericAnalysisApp:
             self.log_message(f"输入文件已选择: {path}")
 
     def select_output_file(self):
-        """选择输出文件"""
         path = filedialog.asksaveasfilename(
             title="保存结果文件",
             defaultextension=".csv",
@@ -323,7 +297,6 @@ class GenericAnalysisApp:
             self.log_message(f"输出路径已设置: {path}")
 
     def clean_checkpoint(self):
-        """清理检查点"""
         if os.path.exists(self.checkpoint_file):
             try:
                 os.remove(self.checkpoint_file)
@@ -332,7 +305,6 @@ class GenericAnalysisApp:
                 self.log_message(f"检查点清理失败: {str(e)}", is_error=True)
 
     def log_message(self, message, is_error=False):
-        """记录日志"""
         timestamp = datetime.now().strftime("%H:%M:%S")
         msg = f"[{timestamp}] {message}\n"
         self.log_text.insert(tk.END, msg)
@@ -341,13 +313,11 @@ class GenericAnalysisApp:
         self.log_text.see(tk.END)
 
     def update_progress(self, value, total):
-        """更新进度"""
         self.progress['value'] = value
         self.progress['maximum'] = total
         self.status_var.set(f"处理进度: {value}/{total} ({value / total:.1%})")
 
     def safe_api_call(self, text, index):
-        """安全API调用"""
         if self.stop_event.is_set():
             return (index, "已中止")
 
@@ -420,12 +390,10 @@ class GenericAnalysisApp:
         return (index, "超过最大重试次数")
 
     def update_token_count(self, tokens):
-        """更新Token统计"""
         self.total_tokens += tokens
         self.token_var.set(f"已用Token: {self.total_tokens}")
 
     def processing_worker(self):
-        """处理工作线程"""
         try:
             input_path = self.input_path.get()
             current_hash = self.calculate_file_fingerprint(input_path)
@@ -434,7 +402,6 @@ class GenericAnalysisApp:
                 self.current_write_index = 0
                 self.current_input_hash = current_hash
 
-            # 支持CSV和Excel文件
             if input_path.lower().endswith('.csv'):
                 df = pd.read_csv(input_path, dtype={self.id_column: str})
             else:
@@ -455,7 +422,6 @@ class GenericAnalysisApp:
                 if write_header:
                     writer.writerow(["ID", "原始文本", "模型响应"])
 
-                # 加载检查点
                 if os.path.exists(self.checkpoint_file):
                     with open(self.checkpoint_file, 'r') as f:
                         self.current_write_index = int(f.read().strip())
@@ -480,7 +446,6 @@ class GenericAnalysisApp:
                             with self.lock:
                                 self.results_buffer[idx] = result
 
-                                # 按顺序写入结果
                                 while self.current_write_index in self.results_buffer:
                                     row = df.iloc[self.current_write_index]
                                     writer.writerow([
@@ -508,7 +473,6 @@ class GenericAnalysisApp:
             self.root.after(0, self.processing_finished)
 
     def calculate_file_fingerprint(self, file_path):
-        """增强型文件指纹校验"""
         try:
             with open(file_path, 'rb') as f:
                 file_hash = hashlib.sha256()
@@ -520,7 +484,6 @@ class GenericAnalysisApp:
             return ""
 
     def start_processing(self):
-        """开始处理"""
         if not self.input_path.get():
             messagebox.showerror("错误", "请选择输入文件")
             return
@@ -537,13 +500,11 @@ class GenericAnalysisApp:
         worker.start()
 
     def stop_processing(self):
-        """停止处理"""
         self.stop_event.set()
         self.log_message("正在停止... 最后一条请求处理完成后将完全停止")
         self.stop_btn.config(state=tk.DISABLED)
 
     def processing_finished(self):
-        """处理完成后的清理"""
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         self.status_var.set("处理完成")
